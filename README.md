@@ -1,4 +1,4 @@
-# CodeRepute — FastAPI prototype (Swagger UI)
+# ProofForge — FastAPI prototype (Swagger UI)
 
 Evaluate GitHub repos and anchor explainable evaluation on Hedera testnet.
 
@@ -18,7 +18,7 @@ Evaluate GitHub repos and anchor explainable evaluation on Hedera testnet.
 ### Install
 ```bash
 git clone <repo-url>
-cd coderepute
+cd proofforge
 python -m venv .venv
 source .venv/bin/activate   # mac/linux
 pip install -r requirements.txt

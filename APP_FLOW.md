@@ -1,96 +1,132 @@
-# APP_FLOW.md (App flow document — step-by-step sequence)
+# ProofForge — Application Flow
 
 ## Actors
-- **User**: posts repo link via Swagger UI (or frontend).
-- **Backend**: FastAPI — orchestrator.
-- **Evaluator (local)**: rule engine (or ASI agent in future).
-- **Hedera**: Consensus Service (topic) to store proofs.
-- **Storage**: local JSON (or DB) to persist results.
 
-## End-to-End Flow (prototype)
+* **User**: provides GitHub repo link.
+* **FastAPI Backend**: orchestrator, integrates ASI + Hedera.
+* **EvaluatorAgent**: analyzes code & explains reasoning.
+* **Hedera Network**: stores verifiable proof (trace hash).
+* **Storage**: local JSON file or database.
 
-### 1 — User posts repo
-- Action: `POST /evaluate` with `{"repo_url":"https://github.com/owner/repo"}`
-- FastAPI:
-  - validates input
-  - extracts `owner` and `repo` (parse URL)
+## Step-by-Step Flow
 
-### 2 — Backend fetches GitHub data
-- Calls:
-  - `GET https://api.github.com/repos/{owner}/{repo}` → metadata (stars, issues)
-  - `GET https://api.github.com/repos/{owner}/{repo}/commits` → commits list
-  - `GET https://api.github.com/repos/{owner}/{repo}/contents` → search for `test` folder
-- Builds `summary = { stars, open_issues, has_tests, commit_count }`
+### 1️⃣ User Input
 
-### 3 — Evaluator runs
-- Calls `evaluate_repo_summary(summary)`
-  - Local prototype returns `{score: int, trace: [str]}`.
-  - Each trace item is human-readable e.g. `"has tests: +20"`
+User opens Swagger UI → `POST /evaluate` → enters JSON:
 
-### 4 — Produce immutable trace hash
-- `trace_str = json.dumps(trace, sort_keys=True)`
-- `trace_hash = sha256(trace_str)`
+```json
+{"repo_url": "https://github.com/user/project"}
+```
 
-### 5 — Submit proof to Hedera
-- Compose message:
+### 2️⃣ Backend Extracts Repo Info
+
+* Parses owner/repo from URL.
+* Fetches GitHub data:
+
+  * stars, issues, commits, test folders.
+
+### 3️⃣ EvaluatorAgent Reasoning
+
+* Passes metadata to `evaluate_repo()` or `evaluate_repo_with_asi()`.
+* Agent returns:
+
 ```json
 {
-  "repo": "owner/repo",
-  "score": 45,
-  "trace_hash": "abc123",
-  "timestamp": "ISO8601"
+  "score": 75,
+  "trace": [
+    "found tests: +20",
+    "stars>50: +10",
+    "active commits: +15"
+  ]
 }
 ```
 
-- Submit to Hedera Consensus Topic
-- Receive transaction ID
+### 4️⃣ Create Reasoning Hash
 
-### 6 — Persist and return result
-- Save to local storage (JSON file or DB)
-- Return complete response:
+* Convert trace list → JSON string → SHA256 hash.
+
+### 5️⃣ Publish Proof to Hedera
+
+* Message:
+
 ```json
 {
-  "repo": "owner/repo",
-  "score": 45,
-  "trace": ["has tests: +20", "stars > 100: +15"],
-  "trace_hash": "abc123...",
-  "hedera_tx_id": "0.0.123456@1640995200.123456789",
-  "timestamp": "2023-12-01T12:00:00Z"
+  "repo":"user/project",
+  "score":75,
+  "trace_hash":"0xabc...",
+  "timestamp":"2025-10-16T12:00:00Z"
 }
 ```
 
-## Error Handling
+* Sent via `hedera_client.submit_proof()`.
+* Hedera returns `transaction_id`.
 
-### GitHub API Errors
-- Rate limiting → retry with exponential backoff
-- Repository not found → return 404 with clear message
-- Private repository → return 403 (requires authentication)
+### 6️⃣ Save Result Locally
 
-### Hedera Errors
-- Network issues → retry submission
-- Invalid credentials → return 500 with setup instructions
-- Topic creation fails → fallback to local storage only
+Append record to `storage.json` with all fields.
 
-### Validation Errors
-- Invalid URL format → return 400 with example
-- Missing required fields → return 400 with field list
+### 7️⃣ Response to User
 
-## Future Enhancements
+FastAPI returns:
 
-### Phase 2: ASI Agent Integration
-- Replace local evaluator with ASI agent
-- More sophisticated code analysis
-- Multi-language support
+```json
+{
+  "repo": "user/project",
+  "score": 75,
+  "trace": ["found tests +20", "active commits +15"],
+  "trace_hash": "0xabc...",
+  "hedera_tx": "0.0.xxxx-0-...",
+  "timestamp": "2025-10-16T12:00:00Z"
+}
+```
 
-### Phase 3: Advanced Features
-- Batch repository evaluation
-- Historical trend analysis
-- Custom evaluation criteria
-- Webhook notifications
+### 8️⃣ View Results
 
-### Phase 4: Production Ready
-- Database integration (PostgreSQL)
-- Authentication and authorization
-- Rate limiting and quotas
-- Monitoring and logging
-- Docker containerization
+* User visits `/docs` → GET `/results/{owner}/{repo}`
+* Displays all stored evaluations.
+
+---
+
+## MVP Flow (when ASI added)
+
+```
+User
+ ↓
+FastAPI
+ ↓
+EvaluatorAgent (ASI reasoning → returns score+trace)
+ ↓
+VerifierAgent (validates reasoning)
+ ↓
+Hedera (writes trace hash proof)
+ ↓
+User sees reasoning + Hedera tx link
+```
+
+---
+
+## Error & Safety Handling
+
+* If GitHub API fails → return 404.
+* If Hedera submission fails → log and return partial result.
+* Never log private keys; use env vars.
+
+---
+
+## Demo Script (for hackathon)
+
+1. Go to Swagger UI → `/evaluate`.
+2. Paste a GitHub repo.
+3. Show returned reasoning trace.
+4. Click Hedera tx link → opens in Hedera testnet explorer.
+5. Judges see reasoning → on-chain proof.
+
+---
+
+## Summary
+
+**Prototype Flow:**
+Human → Evaluator → Hedera → Proof
+
+**MVP Flow:**
+Human ↔ Multi-Agent Reasoning (ASI) ↔ Hedera Proof + Tokens
