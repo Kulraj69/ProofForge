@@ -56,3 +56,12 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Developer documentation (keep these local only)
+IMPLEMENTATION.md
+APP_FLOW.md
+*.mdc
+proofforge.md
+
+# Local storage
+storage.json
