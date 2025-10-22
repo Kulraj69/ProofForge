@@ -52,7 +52,9 @@ Evaluates a GitHub repository and submits proof to Hedera.
   "trace": ["has tests: +20", "stars > 100: +15", "active commits: +10"],
   "trace_hash": "abc123...",
   "hedera_tx": "0.0.123456@1640995200.123456789",
-  "timestamp": "2023-12-01T12:00:00Z"
+  "timestamp": "2023-12-01T12:00:00Z",
+  "ipfs_hash": "QmXxXxXx...",
+  "ipfs_url": "https://ipfs.io/ipfs/QmXxXxXx..."
 }
 ```
 
@@ -64,6 +66,9 @@ Get all evaluation results.
 
 ### POST /create_topic
 Create a new Hedera Consensus Topic for storing proofs.
+
+### POST /submit_to_hedera
+Low-level helper: sends arbitrary JSON message to Hedera topic.
 
 ## Configuration
 

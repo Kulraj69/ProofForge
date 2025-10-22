@@ -5,10 +5,14 @@ from datetime import datetime
 
 STORAGE_FILE = "storage.json"
 
+def ensure_storage_exists():
+    """Ensure storage.json exists with empty array"""
+    if not os.path.exists(STORAGE_FILE):
+        save_storage([])
+
 def load_storage() -> List[Dict[str, Any]]:
     """Load evaluation results from storage file"""
-    if not os.path.exists(STORAGE_FILE):
-        return []
+    ensure_storage_exists()
     
     try:
         with open(STORAGE_FILE, 'r') as f:
@@ -26,6 +30,7 @@ def save_storage(data: List[Dict[str, Any]]) -> None:
 
 def save_evaluation(result: Dict[str, Any]) -> None:
     """Save a single evaluation result"""
+    ensure_storage_exists()
     storage = load_storage()
     storage.append(result)
     save_storage(storage)

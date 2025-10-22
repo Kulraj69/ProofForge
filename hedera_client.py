@@ -39,6 +39,43 @@ def submit_proof(topic_id: str, message: Dict[str, Any]) -> str:
         # Return mock transaction ID on failure
         return f"mock_tx_{hash(str(message))}"
 
+def submit_message(topic_id: str, message: str) -> str:
+    """Submit raw message string to Hedera Consensus Service"""
+    try:
+        # Try to import Hedera SDK
+        try:
+            from hedera import Client, TopicMessageSubmitTransaction, TopicId
+        except ImportError:
+            print("Hedera SDK not installed. Using mock transaction ID.")
+            return f"mock_tx_{hash(message)}"
+        
+        # Initialize Hedera client
+        client = Client.for_testnet()
+        
+        # Set operator credentials
+        operator_id = os.getenv("HEDERA_OPERATOR_ID")
+        operator_key = os.getenv("HEDERA_OPERATOR_KEY")
+        
+        if not operator_id or not operator_key:
+            print("Hedera credentials not found. Using mock transaction ID.")
+            return f"mock_tx_{hash(message)}"
+        
+        client.setOperator(operator_id, operator_key)
+        
+        # Create and execute transaction
+        tx = (TopicMessageSubmitTransaction()
+              .setTopicId(TopicId.fromString(topic_id))
+              .setMessage(message)
+              .execute(client))
+        
+        receipt = tx.getReceipt(client)
+        return str(receipt.transactionId)
+        
+    except Exception as e:
+        print(f"Hedera submission failed: {str(e)}")
+        # Return mock transaction ID on failure
+        return f"mock_tx_{hash(message)}"
+
 def create_consensus_topic(memo: str = "ProofForge Evaluation Topic") -> Optional[str]:
     """Create a new Hedera Consensus Topic"""
     try:

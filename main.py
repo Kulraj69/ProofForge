@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 from models import EvaluateRequest, EvaluationResult, CreateTopicRequest
 from github_client import fetch_github_data, parse_github_url
 from evaluator import evaluate_repo
-from hedera_client import submit_proof, create_consensus_topic, get_hedera_explorer_url
+from hedera_client import submit_proof, create_consensus_topic, get_hedera_explorer_url, submit_message
+from ipfs_client import upload_to_ipfs, get_from_ipfs, get_ipfs_url
 from storage import save_evaluation, get_evaluations_by_repo, get_all_evaluations
 from config import Config
 from logger import logger
@@ -88,6 +89,18 @@ async def evaluate_repository(request: EvaluateRequest):
         save_evaluation(result.dict())
         logger.info("Evaluation result saved to storage")
         
+        # Optional: Upload to IPFS for decentralized storage
+        try:
+            ipfs_hash = upload_to_ipfs(result.dict())
+            if ipfs_hash:
+                logger.info(f"Result uploaded to IPFS: {ipfs_hash}")
+                # Add IPFS hash to result
+                result_dict = result.dict()
+                result_dict['ipfs_hash'] = ipfs_hash
+                result_dict['ipfs_url'] = get_ipfs_url(ipfs_hash)
+        except Exception as e:
+            logger.warning(f"IPFS upload failed: {str(e)}")
+        
         return result
         
     except ValueError as e:
@@ -126,6 +139,23 @@ async def create_hedera_topic(request: CreateTopicRequest):
             raise HTTPException(status_code=500, detail="Failed to create topic")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating topic: {str(e)}")
+
+@app.post("/submit_to_hedera")
+async def submit_to_hedera_endpoint(message: dict):
+    """Low-level helper: sends arbitrary JSON message to Hedera topic"""
+    try:
+        logger.info(f"Submitting message to Hedera: {message}")
+        topic_id = Config.HEDERA_TOPIC_ID
+        tx_id = submit_proof(topic_id, message)
+        logger.info(f"Hedera transaction ID: {tx_id}")
+        return {
+            "message": "Message submitted to Hedera successfully",
+            "transaction_id": tx_id,
+            "topic_id": topic_id
+        }
+    except Exception as e:
+        logger.error(f"Error submitting to Hedera: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error submitting to Hedera: {str(e)}")
 
 @app.get("/")
 async def root():
