@@ -1,7 +1,7 @@
 import requests
 import os
 from typing import Dict, Any
-from .models import RepoInfo
+from models import RepoInfo
 
 def fetch_github_data(owner: str, repo: str) -> RepoInfo:
     """Fetch repository data from GitHub API"""

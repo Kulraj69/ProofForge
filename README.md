@@ -51,10 +51,38 @@ Evaluates a GitHub repository and submits proof to Hedera.
   "score": 45,
   "trace": ["has tests: +20", "stars > 100: +15", "active commits: +10"],
   "trace_hash": "abc123...",
-  "hedera_tx_id": "0.0.123456@1640995200.123456789",
+  "hedera_tx": "0.0.123456@1640995200.123456789",
   "timestamp": "2023-12-01T12:00:00Z"
 }
 ```
+
+### GET /results/{owner}/{repo}
+Get all evaluation results for a specific repository.
+
+### GET /results
+Get all evaluation results.
+
+### POST /create_topic
+Create a new Hedera Consensus Topic for storing proofs.
+
+## Configuration
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+cp .env.example .env
+```
+
+Required environment variables:
+- `GITHUB_TOKEN`: Your GitHub personal access token
+- `HEDERA_OPERATOR_ID`: Your Hedera operator ID
+- `HEDERA_OPERATOR_KEY`: Your Hedera private key
+- `HEDERA_TOPIC_ID`: Hedera consensus topic ID (optional, will create if not provided)
+
+Optional:
+- `ASI_API_KEY`: ASI API key for advanced AI evaluation
+- `DEBUG`: Set to `True` for debug logging
+- `LOG_LEVEL`: Logging level (INFO, DEBUG, ERROR)
 
 ## Architecture
 

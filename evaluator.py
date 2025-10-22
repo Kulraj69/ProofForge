@@ -1,7 +1,7 @@
 from typing import Dict, Any, Tuple, List
 import requests
 import os
-from .models import RepoInfo
+from models import RepoInfo
 
 def evaluate_repo_local(repo_info: RepoInfo) -> Tuple[int, List[str]]:
     """Local rule-based evaluator that returns score and trace"""

@@ -11,6 +11,8 @@ from github_client import fetch_github_data, parse_github_url
 from evaluator import evaluate_repo
 from hedera_client import submit_proof, create_consensus_topic, get_hedera_explorer_url
 from storage import save_evaluation, get_evaluations_by_repo, get_all_evaluations
+from config import Config
+from logger import logger
 
 load_dotenv()
 
@@ -19,6 +21,9 @@ app = FastAPI(
     description="Evaluate GitHub repos and anchor explainable evaluation on Hedera testnet",
     version="1.0.0"
 )
+
+# Validate configuration on startup
+Config.validate_config()
 
 
 def generate_trace_hash(trace: List[str]) -> str:
@@ -30,27 +35,35 @@ def generate_trace_hash(trace: List[str]) -> str:
 async def evaluate_repository(request: EvaluateRequest):
     """Evaluate a GitHub repository and submit proof to Hedera"""
     try:
+        logger.info(f"Starting evaluation for repository: {request.repo_url}")
+        
         # Parse GitHub URL
         owner, repo = parse_github_url(str(request.repo_url))
         repo_name = f"{owner}/{repo}"
+        logger.info(f"Parsed repository: {repo_name}")
         
         # Fetch GitHub data
+        logger.info("Fetching GitHub repository data...")
         repo_info = fetch_github_data(owner, repo)
+        logger.info(f"Repository data fetched: {repo_info.stars} stars, {repo_info.commit_count} commits")
         
         # Run evaluation (with ASI if available)
-        use_asi = bool(os.getenv("ASI_API_KEY"))
+        use_asi = bool(Config.ASI_API_KEY)
+        logger.info(f"Running evaluation with ASI: {use_asi}")
         evaluation = evaluate_repo(repo_info, use_asi=use_asi)
         score = evaluation["score"]
         trace = evaluation["trace"]
+        logger.info(f"Evaluation completed: score={score}, trace={len(trace)} items")
         
         # Generate trace hash
         trace_hash = generate_trace_hash(trace)
+        logger.info(f"Generated trace hash: {trace_hash[:16]}...")
         
         # Create timestamp
         timestamp = datetime.now()
         
         # Submit to Hedera
-        topic_id = os.getenv("HEDERA_TOPIC_ID", "default_topic")
+        logger.info("Submitting proof to Hedera...")
         hedera_message = {
             "repo": repo_name,
             "score": score,
@@ -58,7 +71,8 @@ async def evaluate_repository(request: EvaluateRequest):
             "timestamp": timestamp.isoformat()
         }
         
-        hedera_tx_id = submit_proof(topic_id, hedera_message)
+        hedera_tx_id = submit_proof(Config.HEDERA_TOPIC_ID, hedera_message)
+        logger.info(f"Hedera transaction ID: {hedera_tx_id}")
         
         # Create result
         result = EvaluationResult(
@@ -72,12 +86,15 @@ async def evaluate_repository(request: EvaluateRequest):
         
         # Save to storage
         save_evaluation(result.dict())
+        logger.info("Evaluation result saved to storage")
         
         return result
         
     except ValueError as e:
+        logger.error(f"Validation error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/results/{owner}/{repo}", response_model=List[EvaluationResult])
