@@ -14,6 +14,8 @@ from ipfs_client import upload_to_ipfs, get_from_ipfs, get_ipfs_url
 from storage import save_evaluation, get_evaluations_by_repo, get_all_evaluations
 from config import Config
 from logger import logger
+from validators import validate_github_url, validate_repo_name, sanitize_input
+from monitoring import monitor_performance, get_performance_metrics
 
 load_dotenv()
 
@@ -33,13 +35,23 @@ def generate_trace_hash(trace: List[str]) -> str:
     return hashlib.sha256(trace_str.encode()).hexdigest()
 
 @app.post("/evaluate", response_model=EvaluationResult)
+@monitor_performance
 async def evaluate_repository(request: EvaluateRequest):
     """Evaluate a GitHub repository and submit proof to Hedera"""
     try:
         logger.info(f"Starting evaluation for repository: {request.repo_url}")
         
+        # Validate GitHub URL
+        if not validate_github_url(str(request.repo_url)):
+            raise HTTPException(status_code=400, detail="Invalid GitHub URL format")
+        
         # Parse GitHub URL
         owner, repo = parse_github_url(str(request.repo_url))
+        
+        # Validate repository name
+        if not validate_repo_name(owner, repo):
+            raise HTTPException(status_code=400, detail="Invalid repository name format")
+        
         repo_name = f"{owner}/{repo}"
         logger.info(f"Parsed repository: {repo_name}")
         
@@ -166,6 +178,11 @@ async def root():
 async def health():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.get("/metrics")
+async def get_metrics():
+    """Get performance metrics"""
+    return get_performance_metrics()
 
 if __name__ == "__main__":
     import uvicorn
