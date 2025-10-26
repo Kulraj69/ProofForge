@@ -63,7 +63,7 @@ async def evaluate_repository(request: EvaluateRequest):
         # Run evaluation (with ASI if available)
         use_asi = bool(Config.ASI_API_KEY)
         logger.info(f"Running evaluation with ASI: {use_asi}")
-        evaluation = evaluate_repo(repo_info, use_asi=use_asi)
+        evaluation = await evaluate_repo(repo_info, use_asi=use_asi)
         score = evaluation["score"]
         trace = evaluation["trace"]
         logger.info(f"Evaluation completed: score={score}, trace={len(trace)} items")
